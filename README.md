@@ -264,13 +264,3 @@ python3 Export_ONNX.py --validate
 `Export_ONNX.py` exports both the split ONNX pipeline and the default hybrid
 hot Conv artifacts.
 
-## What Runs In The Browser
-
-1. Per-frame encoder ONNX caches reusable features.
-2. Motion ONNX predicts shift weights and visibility.
-3. A custom WebGPU shader performs directional `apply_shift` warping.
-4. Stage 2 runs through the default hybrid hot Conv path.
-5. Video mode decodes frames with WebCodecs and writes a silent H.264 MP4.
-
-Open the app with `?profile=1` to enable WebGPU timestamp profiling. Turn this
-off for normal latency measurements.
