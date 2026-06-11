@@ -163,7 +163,6 @@ update `NVIDIA_ICD` or remove the two `VK_*` variables.
 Before launching, set the browser to use the discrete GPU in Windows Settings:
 
 `Settings -> System -> Display -> Graphics`
-```
 
 Chrome:
 
