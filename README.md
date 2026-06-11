@@ -1,62 +1,81 @@
-# VFI WebGPU Demo
+# Frame Interpolation WebGPU
 
-Browser deployment for this frame interpolation model, built with React, Vite,
-ONNX Runtime Web, WebGPU compute shaders, WebCodecs, and MP4 muxing in the
-browser.
+Run frame and video interpolation directly in a Chromium browser with WebGPU.
 
-The app runs the model as a split WebGPU pipeline:
+This is the browser deployment of
+[XyzHuy/UET-Deep-Learning-2025_Frame-Interpolation](https://github.com/XyzHuy/UET-Deep-Learning-2025_Frame-Interpolation).
+It uses React, Vite, ONNX Runtime Web, custom WebGPU compute shaders, WebCodecs,
+and in-browser MP4 encoding.
 
-1. `frame_interpolation_encoder_fp32.onnx` encodes reusable per-frame features.
-2. `frame_interpolation_motion_fp32.onnx` predicts shift weights and visibility.
-3. `src/apply_shift_webgpu.js` runs the fused directional warp on WebGPU.
-4. Stage 2 uses the default hybrid hot Conv path:
-   `stage2_pre.onnx -> custom Conv3x3 + bias + PReLU -> stage2_post.onnx`.
+> This demo is optimized for convenience and portability, not for matching the
+> PyTorch/CUDA inference speed of the original repository. Browser WebGPU,
+> ONNX Runtime Web sessions, and FP32 convolution overhead make it slower than
+> the native Torch path.
 
-This deployment is intended for interactive browser inference and Vercel-style
-static hosting. It is not expected to match the inference time of the original
-PyTorch/CUDA model in the repository. ONNX Runtime Web and browser WebGPU add
-extra session, synchronization, memory, and shader-dispatch overhead, and the
-refiner still performs large FP32 convolution work.
-
-## Requirements
-
-- Chrome or another browser with WebGPU enabled
-- Node.js 18+
-- Exported model files in `public/models`
-
-The current browser path is FP32-only.
-
-## GPU Compatibility
-
-The app performs a browser-side compatibility gate before loading the model:
-
-- requires a Chromium-family desktop browser
-- requires a secure context (`https://` or `localhost`)
-- requests a high-performance WebGPU adapter
-- rejects fallback/software adapters such as SwiftShader, llvmpipe, lavapipe,
-  WARP, and other CPU/software paths
-- currently expects an NVIDIA adapter because this demo is tuned around that
-  deployment target
-
-If the page rejects the adapter, ask users to enable browser hardware
-acceleration and inspect `chrome://gpu`. On Windows, also set the browser to
-use the discrete GPU in Settings -> System -> Display -> Graphics or the NVIDIA
-Control Panel.
-
-Linux NVIDIA users can launch Chrome directly from a terminal:
+## Quick Start
 
 ```bash
+npm install
+npm run dev
+```
+
+Open the local URL printed by Vite. For Vercel, deploy as a normal Vite static
+site:
+
+| Setting | Value |
+| --- | --- |
+| Framework | Vite |
+| Install Command | `npm ci` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Environment Variables | none |
+## Browser Requirements
+
+Use a desktop Chromium-family browser:
+
+- Google Chrome
+- Microsoft Edge
+- Brave
+- Chromium
+
+The app checks WebGPU before loading the model. It rejects software adapters
+such as SwiftShader, llvmpipe, lavapipe, WARP, CPU fallback, and other
+non-hardware paths.
+
+If the page rejects your GPU:
+
+1. Turn on browser hardware acceleration.
+2. Open `chrome://gpu` and confirm WebGPU is using the real GPU.
+3. Launch the browser with one of the commands below.
+
+The commands include:
+
+- `--no-first-run` to skip first-run sign-in/onboarding pages
+- `--no-default-browser-check` to skip "make this default browser" prompts
+- a fixed `--user-data-dir` so the browser remembers the skipped setup screen
+- `--disable-software-rasterizer` so SwiftShader/software fallback is rejected
+
+If a browser still shows one setup page, click the "stay signed out" or skip
+option once. As long as you keep the same profile directory, it should not ask
+again.
+
+## Linux NVIDIA Commands
+Chrome:
+
+```bash
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 APP_URL="https://web-gpu-vfi.vercel.app/"
 NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
-__NV_PRIME_RENDER_OFFLOAD=1 \
-__GLX_VENDOR_LIBRARY_NAME=nvidia \
-__VK_LAYER_NV_optimus=NVIDIA_only \
-DRI_PRIME=1 \
-VK_DRIVER_FILES="$NVIDIA_ICD" \
-VK_ICD_FILENAMES="$NVIDIA_ICD" \
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
+VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
 google-chrome \
-  --user-data-dir=/tmp/vfi-webgpu-chrome-nvidia \
+  --user-data-dir=/tmp/vfi-webgpu-chrome \
+  --no-first-run \
+  --no-default-browser-check \
   --enable-unsafe-webgpu \
   --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \
   --enable-dawn-features=allow_unsafe_apis \
@@ -68,18 +87,102 @@ google-chrome \
   "$APP_URL"
 ```
 
-Replace `google-chrome` with `google-chrome-stable`, `chromium`,
-`microsoft-edge`, or `brave-browser` if needed. If your NVIDIA ICD file lives
-elsewhere, update `NVIDIA_ICD` or remove the two `VK_*` lines.
+Chromium:
 
-Windows users can launch Chrome from PowerShell:
+```bash
 
+APP_URL="https://web-gpu-vfi.vercel.app/"
+NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+<<<<<<< Updated upstream
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Chrome = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+=======
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
+VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
+chromium \
+  --user-data-dir=/tmp/vfi-webgpu-chromium \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \
+  --enable-dawn-features=allow_unsafe_apis \
+  --use-angle=vulkan \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  --enable-zero-copy \
+  "$APP_URL"
+```
 
-Start-Process $Chrome -ArgumentList @(
+Microsoft Edge:
+
+```bash
+
+APP_URL="https://web-gpu-vfi.vercel.app/"
+NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
+VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
+microsoft-edge \
+  --user-data-dir=/tmp/vfi-webgpu-edge \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \
+  --enable-dawn-features=allow_unsafe_apis \
+  --use-angle=vulkan \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  --enable-zero-copy \
+  "$APP_URL"
+```
+
+Brave:
+
+```bash
+APP_URL="https://web-gpu-vfi.vercel.app/"
+NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
+VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
+brave-browser \
+  --user-data-dir=/tmp/vfi-webgpu-brave \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \
+  --enable-dawn-features=allow_unsafe_apis \
+  --use-angle=vulkan \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  --enable-zero-copy \
+  "$APP_URL"
+```
+
+If your NVIDIA ICD file is not at `/usr/share/vulkan/icd.d/nvidia_icd.json`,
+update `NVIDIA_ICD` or remove the two `VK_*` variables.
+
+## Windows Commands
+
+Before launching, set the browser to use the discrete GPU in Windows Settings:
+>>>>>>> Stashed changes
+
+`Settings -> System -> Display -> Graphics`
+```
+
+Chrome:
+
+```powershell
+$AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Browser = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+Start-Process $Browser -ArgumentList @(
   "--user-data-dir=$Env:TEMP\vfi-webgpu-chrome",
+  "--no-first-run",
+  "--no-default-browser-check",
   "--enable-unsafe-webgpu",
   "--ignore-gpu-blocklist",
   "--disable-software-rasterizer",
@@ -88,20 +191,62 @@ Start-Process $Chrome -ArgumentList @(
 )
 ```
 
-For Edge or Brave, replace `$Chrome` with the installed browser path.
-Replace `https://YOUR-VERCEL-APP.vercel.app` with the real Vercel URL after
-deployment.
+Microsoft Edge:
 
-## Export Models
-
-From the repository root:
-
-```bash
-python3 Export_ONNX.py --validate
+```powershell
+$AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Browser = "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+Start-Process $Browser -ArgumentList @(
+  "--user-data-dir=$Env:TEMP\vfi-webgpu-edge",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--enable-unsafe-webgpu",
+  "--ignore-gpu-blocklist",
+  "--disable-software-rasterizer",
+  "--enable-gpu-rasterization",
+  $AppUrl
+)
 ```
 
-By default this exports fixed `1x3x720x1280` FP32 artifacts to
-`public/models`, including the hybrid hot Conv Stage 2 files:
+Brave:
+
+```powershell
+$AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Browser = "$Env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe"
+Start-Process $Browser -ArgumentList @(
+  "--user-data-dir=$Env:TEMP\vfi-webgpu-brave",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--enable-unsafe-webgpu",
+  "--ignore-gpu-blocklist",
+  "--disable-software-rasterizer",
+  "--enable-gpu-rasterization",
+  $AppUrl
+)
+```
+
+Chromium:
+
+```powershell
+$AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Browser = "$Env:LOCALAPPDATA\Chromium\Application\chrome.exe"
+Start-Process $Browser -ArgumentList @(
+  "--user-data-dir=$Env:TEMP\vfi-webgpu-chromium",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--enable-unsafe-webgpu",
+  "--ignore-gpu-blocklist",
+  "--disable-software-rasterizer",
+  "--enable-gpu-rasterization",
+  $AppUrl
+)
+```
+
+If your browser is installed somewhere else, update `$Browser`.
+
+## Model Files
+
+The deployed app expects these files under `public/models`:
 
 - `frame_interpolation_encoder_fp32.onnx`
 - `frame_interpolation_motion_fp32.onnx`
@@ -113,41 +258,22 @@ By default this exports fixed `1x3x720x1280` FP32 artifacts to
 - `frame_interpolation_stage2_hotconv_upconv2_0_bias.bin`
 - `frame_interpolation_stage2_hotconv_upconv2_0_prelu.bin`
 
-`Export_ONNX.py` owns the hot Conv split step; there is no separate split script
-inside this WebGPU app.
-
-## Run Locally
+Generate them from the original repository:
 
 ```bash
-npm install
-npm run dev
+python3 Export_ONNX.py --validate
 ```
 
-The app supports pair interpolation and video interpolation at x2, x4, x8, and
-x16. Video mode decodes frames with WebCodecs and writes a silent H.264 MP4 in
-the browser.
+`Export_ONNX.py` exports both the split ONNX pipeline and the default hybrid
+hot Conv artifacts.
 
-## Build
+## What Runs In The Browser
 
-```bash
-npm run build
-```
+1. Per-frame encoder ONNX caches reusable features.
+2. Motion ONNX predicts shift weights and visibility.
+3. A custom WebGPU shader performs directional `apply_shift` warping.
+4. Stage 2 runs through the default hybrid hot Conv path.
+5. Video mode decodes frames with WebCodecs and writes a silent H.264 MP4.
 
-The Vite output in `dist` can be served as static files. Keep the ONNX, binary
-hot Conv artifacts, ORT WASM files, and demo videos under `public` so they are
-copied into the build.
-
-## Profiling
-
-Open the app with `?profile=1` to enable WebGPU timestamp profiling. This is
-useful for finding expensive kernels, but it should be disabled for normal
-latency measurements.
-
-## Project Files
-
-- `src/App.jsx` - UI, model loading, pair/video workflows, progress and metrics
-- `src/inference_pipeline.js` - encoder cache, motion graph, custom warp, Stage 2 orchestration
-- `src/apply_shift_webgpu.js` - fused WebGPU directional warp shader
-- `src/conv3x3_prelu_webgpu.js` - custom Stage 2 hot Conv shader
-- `src/video_encoder.js` - browser H.264 encoding and MP4 muxing
-- `scripts/analyze_stage2_onnx.py` - optional ONNX Conv cost analysis
+Open the app with `?profile=1` to enable WebGPU timestamp profiling. Turn this
+off for normal latency measurements.

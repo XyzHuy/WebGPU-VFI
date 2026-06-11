@@ -25,6 +25,8 @@ fi
 
 CHROME_FLAGS=(
   "--user-data-dir=${PROFILE_DIR}"
+  "--no-first-run"
+  "--no-default-browser-check"
   "--enable-unsafe-webgpu"
   "--enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures"
   "--enable-dawn-features=allow_unsafe_apis"

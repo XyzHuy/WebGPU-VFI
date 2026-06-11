@@ -799,8 +799,8 @@ async function readPrediction(runtime, predTensor) {
 function GpuCompatibilityNotice({ issue }) {
   const pageUrl = issue.pageUrl || "https://YOUR-VERCEL-APP.vercel.app";
   const adapterLabel = issue.adapterInfo ? formatAdapterLabel(issue.adapterInfo) : "";
-  const linuxCommand = `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 google-chrome --enable-unsafe-webgpu --ignore-gpu-blocklist --disable-software-rasterizer --use-angle=vulkan "${pageUrl}"`;
-  const windowsCommand = `Start-Process "$Env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe" -ArgumentList "--enable-unsafe-webgpu --ignore-gpu-blocklist --disable-software-rasterizer ${pageUrl}"`;
+  const linuxCommand = `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 google-chrome --user-data-dir=/tmp/vfi-webgpu-chrome --no-first-run --no-default-browser-check --enable-unsafe-webgpu --ignore-gpu-blocklist --disable-software-rasterizer --use-angle=vulkan "${pageUrl}"`;
+  const windowsCommand = `Start-Process "$Env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe" -ArgumentList "--user-data-dir=$Env:TEMP\\vfi-webgpu-chrome --no-first-run --no-default-browser-check --enable-unsafe-webgpu --ignore-gpu-blocklist --disable-software-rasterizer ${pageUrl}"`;
   return (
     <div className="compatibility-panel">
       <div className="section-title">
