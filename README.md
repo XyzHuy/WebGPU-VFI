@@ -20,6 +20,18 @@ rate, defaults to `x4`, and normalizes frames to the model's fixed `1280 x 720`
 
 > This deployment is optimized for portability and a browser-based demo flow.
 > It is not expected to match the PyTorch/CUDA speed of the original repository.
+## Video Demo (Comparison)
+### Original Video (6 FPS) - On One Puch Man
+
+https://github.com/user-attachments/assets/4b13bd06-0757-44c1-aabf-ba682f54e1a7
+
+
+
+### Interpolated Video (96 FPS) - On One Puch Man
+
+
+https://github.com/user-attachments/assets/8073f3aa-6ff9-48ad-a7bb-818471eab434
+
 
 ## Browser And GPU Requirements
 
@@ -34,12 +46,6 @@ lavapipe, WARP, CPU fallback, and other non-hardware paths.
 | ![Brave](https://img.shields.io/badge/Brave-FB542B?logo=brave&logoColor=white) | Supported |
 | ![Chromium](https://img.shields.io/badge/Chromium-4285F4?logo=chromium&logoColor=white) | Supported |
 
-Before launching with flags:
-
-1. Enable hardware acceleration in the browser settings.
-2. Open `chrome://gpu`.
-3. Confirm WebGPU is using the NVIDIA GPU, not SwiftShader or another software
-   fallback.
 ## Live app deploy in Vercel
 https://web-gpu-vfi.vercel.app/
 
