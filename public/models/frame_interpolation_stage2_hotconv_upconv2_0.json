@@ -1,0 +1,69 @@
+{
+  "source": "deploy/webgpu/public/models/frame_interpolation_stage2_fp32.onnx",
+  "convNode": "/up_conv2/up_conv2.0/up_conv2.0.0/Conv",
+  "preluNode": "/up_conv2/up_conv2.0/up_conv2.0.1/PRelu",
+  "convNodeIndex": 76,
+  "preModel": "frame_interpolation_stage2_hotconv_upconv2_0_pre.onnx",
+  "postModel": "frame_interpolation_stage2_hotconv_upconv2_0_post.onnx",
+  "weight": "frame_interpolation_stage2_hotconv_upconv2_0_weight.bin",
+  "bias": "frame_interpolation_stage2_hotconv_upconv2_0_bias.bin",
+  "prelu": "frame_interpolation_stage2_hotconv_upconv2_0_prelu.bin",
+  "inputName": "/Concat_9_output_0",
+  "convOutputName": "/up_conv2/up_conv2.0/up_conv2.0.0/Conv_output_0",
+  "outputName": "/up_conv2/up_conv2.0/up_conv2.0.1/PRelu_output_0",
+  "mergedName": "/Add_output_0",
+  "weightName": "model.refiner.up_conv2.0.0.weight",
+  "biasName": "model.refiner.up_conv2.0.0.bias",
+  "preluName": "onnx::PRelu_374",
+  "inputShape": [
+    1,
+    160,
+    360,
+    640
+  ],
+  "convOutputShape": [
+    1,
+    96,
+    360,
+    640
+  ],
+  "outputShape": [
+    1,
+    96,
+    360,
+    640
+  ],
+  "mergedShape": [
+    1,
+    3,
+    720,
+    1280
+  ],
+  "weightShape": [
+    96,
+    160,
+    3,
+    3
+  ],
+  "biasShape": [
+    96
+  ],
+  "preluShape": [
+    96
+  ],
+  "kernelShape": [
+    3,
+    3
+  ],
+  "stride": [
+    1,
+    1
+  ],
+  "pad": [
+    1,
+    1,
+    1,
+    1
+  ],
+  "format": "float32-little-endian"
+}
