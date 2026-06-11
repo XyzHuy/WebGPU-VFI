@@ -63,10 +63,7 @@ again.
 Chrome:
 
 ```bash
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 APP_URL="https://web-gpu-vfi.vercel.app/"
 NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
@@ -94,11 +91,6 @@ Chromium:
 APP_URL="https://web-gpu-vfi.vercel.app/"
 NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
-<<<<<<< Updated upstream
-```powershell
-$AppUrl = "https://web-gpu-vfi.vercel.app/"
-$Chrome = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
-=======
 __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
 VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
 chromium \
@@ -169,7 +161,6 @@ update `NVIDIA_ICD` or remove the two `VK_*` variables.
 ## Windows Commands
 
 Before launching, set the browser to use the discrete GPU in Windows Settings:
->>>>>>> Stashed changes
 
 `Settings -> System -> Display -> Graphics`
 ```
