@@ -160,23 +160,21 @@ update `NVIDIA_ICD` or remove the two `VK_*` variables.
 
 ## Windows Commands
 
-Before launching, set the browser to use the discrete GPU in Windows Settings:
-
-`Settings -> System -> Display -> Graphics`
-
 Chrome:
 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Browser = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
 Start-Process $Browser -ArgumentList @(
-  "--user-data-dir=$Env:TEMP\vfi-webgpu-chrome",
+  "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
   "--enable-unsafe-webgpu",
   "--ignore-gpu-blocklist",
-  "--disable-software-rasterizer",
   "--enable-gpu-rasterization",
+  "--enable-features=UseSkiaRenderer",
+  "--force_high_performance_gpu",
+  "--new-window",
   $AppUrl
 )
 ```
@@ -194,6 +192,9 @@ Start-Process $Browser -ArgumentList @(
   "--ignore-gpu-blocklist",
   "--disable-software-rasterizer",
   "--enable-gpu-rasterization",
+  "--enable-features=UseSkiaRenderer",
+  "--force_high_performance_gpu",
+  "--new-window"
   $AppUrl
 )
 ```
@@ -211,6 +212,9 @@ Start-Process $Browser -ArgumentList @(
   "--ignore-gpu-blocklist",
   "--disable-software-rasterizer",
   "--enable-gpu-rasterization",
+  "--enable-features=UseSkiaRenderer",
+  "--force_high_performance_gpu",
+  "--new-window"
   $AppUrl
 )
 ```
@@ -228,6 +232,9 @@ Start-Process $Browser -ArgumentList @(
   "--ignore-gpu-blocklist",
   "--disable-software-rasterizer",
   "--enable-gpu-rasterization",
+  "--enable-features=UseSkiaRenderer",
+  "--force_high_performance_gpu",
+  "--new-window"
   $AppUrl
 )
 ```
