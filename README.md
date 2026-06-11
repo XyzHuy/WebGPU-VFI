@@ -46,7 +46,7 @@ Control Panel.
 Linux NVIDIA users can launch Chrome directly from a terminal:
 
 ```bash
-APP_URL="https://YOUR-VERCEL-APP.vercel.app"
+APP_URL="https://web-gpu-vfi.vercel.app/"
 NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
 __NV_PRIME_RENDER_OFFLOAD=1 \
@@ -75,7 +75,7 @@ elsewhere, update `NVIDIA_ICD` or remove the two `VK_*` lines.
 Windows users can launch Chrome from PowerShell:
 
 ```powershell
-$AppUrl = "https://YOUR-VERCEL-APP.vercel.app"
+$AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Chrome = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
 
 Start-Process $Chrome -ArgumentList @(
