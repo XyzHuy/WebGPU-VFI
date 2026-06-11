@@ -10,19 +10,21 @@ import {
 } from "mediabunny";
 import {
   AlertCircle,
+  BadgeCheck,
   Cpu,
   Download,
   Film,
-  ImagePlus,
+  Gauge,
   Loader2,
+  MonitorCheck,
   Play,
+  Settings2,
   Square,
   Upload,
 } from "lucide-react";
-import { copyGpuTensorToCpu, tensorToCpuData } from "./apply_shift_webgpu.js";
+import { copyGpuTensorToCpu } from "./apply_shift_webgpu.js";
 import {
   FusedApplyShiftPipeline,
-  GPU_PROFILING_ENABLED,
   probeFusedModels,
 } from "./inference_pipeline.js";
 import { createMp4CanvasEncoder } from "./video_encoder.js";
@@ -32,6 +34,8 @@ const MODEL_SIZE = {
   width: 1280,
   height: 720,
 };
+const DEFAULT_VIDEO_MULTIPLIER = 4;
+const VIDEO_RESIZE_MODE = "contain";
 const ENCODER_PATH = "/models/frame_interpolation_encoder_fp32.onnx";
 const MOTION_PATH = "/models/frame_interpolation_motion_fp32.onnx";
 const STAGE2_PATH = "/models/frame_interpolation_stage2_fp32.onnx";
@@ -73,12 +77,9 @@ ort.env.webgpu.powerPreference = "high-performance";
 ort.env.webgpu.forceFallbackAdapter = false;
 
 function App() {
-  const [frame0File, setFrame0File] = useState(null);
-  const [frame1File, setFrame1File] = useState(null);
-  const [mode, setMode] = useState("pair");
   const [videoFile, setVideoFile] = useState(null);
   const [selectedToyVideo, setSelectedToyVideo] = useState("");
-  const [videoMultiplier, setVideoMultiplier] = useState(2);
+  const [videoMultiplier, setVideoMultiplier] = useState(DEFAULT_VIDEO_MULTIPLIER);
   const [videoMetrics, setVideoMetrics] = useState(null);
   const [videoProgress, setVideoProgress] = useState(null);
   const [videoOutputBlob, setVideoOutputBlob] = useState(null);
@@ -86,11 +87,8 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [compatibilityIssue, setCompatibilityIssue] = useState(null);
-  const [resizeMode, setResizeMode] = useState("contain");
-  const [outputUrl, setOutputUrl] = useState("");
 
   const frame0CanvasRef = useRef(null);
-  const frame1CanvasRef = useRef(null);
   const outputCanvasRef = useRef(null);
   const sessionPromiseRef = useRef(null);
   const runtimeRef = useRef(null);
@@ -102,7 +100,6 @@ function App() {
     TOY_VIDEOS.find((video) => video.name === selectedToyVideo)?.url ?? "";
   const videoInputUrl = selectedToyVideoUrl || uploadedVideoUrl;
 
-  const canRun = frame0File && frame1File && !busy;
   const canRunVideo = (videoFile || selectedToyVideo) && !busy;
   const statusTone = useMemo(() => {
     const lower = status.toLowerCase();
@@ -181,68 +178,6 @@ function App() {
     }
   }
 
-  async function runFrameInference() {
-    if (!frame0File || !frame1File) {
-      setStatus("Select two frames");
-      return;
-    }
-
-    setBusy(true);
-    setOutputUrl("");
-    setMetrics((current) => ({
-      loadMs: current?.loadMs,
-      warmupMs: current?.warmupMs,
-      provider: current?.provider,
-      precision: current?.precision,
-    }));
-    setStatus("Preparing frames");
-
-    let predTensor = null;
-    try {
-      const runtime = await loadSession();
-      if (!warmupDoneRef.current) {
-        await warmupSession(runtime);
-      }
-      const prepStarted = performance.now();
-      const img0 = await imageFileToTensor(
-        frame0File,
-        frame0CanvasRef.current,
-        resizeMode,
-      );
-      const img1 = await imageFileToTensor(
-        frame1File,
-        frame1CanvasRef.current,
-        resizeMode,
-      );
-      const prepMs = performance.now() - prepStarted;
-
-      setStatus("Running fused WebGPU inference");
-      const inferenceStarted = performance.now();
-      predTensor = await runInference(runtime, img0, img1);
-      const inferenceMs = performance.now() - inferenceStarted;
-      const pipelineTimings = runtime.pipeline.lastTimings;
-
-      const drawStarted = performance.now();
-      const predData = await readPrediction(runtime, predTensor);
-      drawTensorToCanvas(predData, outputCanvasRef.current);
-      const nextUrl = outputCanvasRef.current.toDataURL("image/png");
-      setOutputUrl(nextUrl);
-      setMetrics((current) => ({
-        ...current,
-        prepMs,
-        inferenceMs,
-        ...pipelineTimings,
-        drawMs: performance.now() - drawStarted,
-      }));
-      setStatus("Frame inference done");
-    } catch (error) {
-      setStatus(`WebGPU inference failed: ${error.message}`);
-    } finally {
-      predTensor?.dispose?.();
-      setBusy(false);
-    }
-  }
-
   async function runVideoInference() {
     const toyVideo = TOY_VIDEOS.find((video) => video.name === selectedToyVideo);
     if (!videoFile && !toyVideo) {
@@ -253,7 +188,6 @@ function App() {
     const controller = new AbortController();
     videoAbortRef.current = controller;
     setBusy(true);
-    setOutputUrl("");
     setVideoMetrics(null);
     setVideoProgress(null);
     setVideoOutputBlob(null);
@@ -270,7 +204,6 @@ function App() {
       source = await createVideoFrameSource(
         toyVideo?.url || videoFile,
         frame0CanvasRef.current,
-        resizeMode,
       );
       const availablePairs = Math.max(0, source.frameCount - 1);
       if (availablePairs === 0) {
@@ -310,7 +243,13 @@ function App() {
 
       encoder = await createMp4CanvasEncoder(outputCanvasRef.current, {
         fps: outputFps,
+        audioTrack: source.audioTrack,
+        signal: controller.signal,
       });
+      setVideoMetrics((current) => ({
+        ...current,
+        audio: encoder.audio,
+      }));
       setVideoProgress((current) => ({
         ...current,
         message: "Interpolating and encoding",
@@ -367,7 +306,7 @@ function App() {
         total: selectedOutputFrames,
         message: "Finalizing MP4",
       });
-      const outputBlob = await encoder.finalize();
+      const { blob: outputBlob, audio } = await encoder.finalize();
       encoder = null;
       const elapsedMs = performance.now() - started;
       setVideoOutputBlob(outputBlob);
@@ -379,6 +318,7 @@ function App() {
         elapsedMs,
         averagePairMs: elapsedMs / requestedPairs,
         etaMs: 0,
+        audio,
       }));
       setVideoProgress({
         progress: 1,
@@ -434,8 +374,12 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
+          <div className="eyebrow">
+            <Film size={15} />
+            <span>WebGPU video interpolation</span>
+          </div>
           <h1>Frame Interpolation WebGPU</h1>
-          <p>Browser-only frame and video inference with the fixed 720p FP32 ONNX graph.</p>
+          <p>Upscale source FPS directly in a desktop Chromium browser with the fixed 720p FP32 ONNX graph.</p>
         </div>
         <div className={`status-pill ${statusTone}`}>
           {busy ? <Loader2 className="spin" size={16} /> : <Cpu size={16} />}
@@ -445,315 +389,220 @@ function App() {
 
       <section className="workspace">
         <aside className="sidebar">
-          <div className="mode-switch">
-            <button
-              className={mode === "pair" ? "active" : ""}
-              type="button"
-              onClick={() => setMode("pair")}
-              disabled={busy}
-            >
-              <ImagePlus size={15} />
-              Frame pair
-            </button>
-            <button
-              className={mode === "video" ? "active" : ""}
-              type="button"
-              onClick={() => setMode("video")}
-              disabled={busy}
-            >
-              <Film size={15} />
-              Video
-            </button>
-          </div>
-
-          {mode === "pair" ? (
-            <>
           <div className="section-title">
-            <ImagePlus size={16} />
-            <span>Frame pair</span>
+            <Upload size={16} />
+            <span>Input</span>
           </div>
 
-          <FileDrop label={frame0File?.name || "Frame 0"} accept="image/*" onChange={setFrame0File} />
-          <FileDrop label={frame1File?.name || "Frame 1"} accept="image/*" onChange={setFrame1File} />
-
-          <Field label="Resize">
-            <select value={resizeMode} onChange={(event) => setResizeMode(event.target.value)}>
-              <option value="contain">contain 16:9</option>
-              <option value="cover">cover crop</option>
-              <option value="stretch">stretch</option>
+          <Field label="Sample video">
+            <select
+              value={selectedToyVideo}
+              onChange={(event) => {
+                const name = event.target.value;
+                setSelectedToyVideo(name);
+                if (name) {
+                  setVideoFile(null);
+                }
+              }}
+            >
+              <option value="">Use uploaded file</option>
+              {TOY_VIDEOS.map((video) => (
+                <option key={video.name} value={video.name}>
+                  {video.label}
+                </option>
+              ))}
             </select>
           </Field>
 
-          <div className="metric-table">
-            <div className="metric-row static">
-              <span>Model</span>
-              <strong>720p fused</strong>
-              <span>{metrics?.precision || "-"}</span>
-            </div>
-            <div className="metric-row static">
-              <span>Input</span>
-              <strong>1x3x720x1280</strong>
-              <span>{metrics?.precision || "-"}</span>
-            </div>
-            <Metric label="Load" value={formatMs(metrics?.loadMs)} tail={metrics?.provider || "nvidia"} />
-            <Metric label="Warmup" value={formatMs(metrics?.warmupMs)} tail="gpu" />
-            <Metric label="Prep" value={formatMs(metrics?.prepMs)} tail="canvas" />
-            <Metric label="Infer" value={formatMs(metrics?.inferenceMs)} tail="gpu" />
-            <Metric label="Upload" value={formatMs(metrics?.uploadMs)} tail="gpu" />
-            <Metric label="Encoder" value={formatMs(metrics?.encoderMs)} tail="ort" />
-            <Metric label="Motion" value={formatMs(metrics?.motionMs)} tail="ort" />
-            <Metric label="Encode + motion" value={formatMs(metrics?.stage1Ms)} tail="ort" />
-            <Metric label="Shift" value={formatMs(metrics?.shiftMs)} tail="encode" />
-            <Metric label="Stage 2" value={formatMs(metrics?.stage2Ms)} tail={metrics?.stage2Runtime || "ort"} />
-            {metrics?.stage2PreMs !== undefined && (
-              <>
-                <Metric label="Stage2 pre" value={formatMs(metrics.stage2PreMs)} tail="ort" />
-                <Metric
-                  label="Hot conv"
-                  value={formatMs(metrics.stage2HotConvSubmitMs)}
-                  tail="submit"
-                />
-                <Metric label="Stage2 post" value={formatMs(metrics.stage2PostMs)} tail="ort+wait" />
-              </>
-            )}
-            {GPU_PROFILING_ENABLED && (
-              <>
-                <Metric label="GPU total" value={formatMs(metrics?.gpuProfile?.totalGpuMs)} tail="timestamps" />
-                <Metric
-                  label="GPU kernels"
-                  value={metrics?.gpuProfile?.kernelCount ?? "-"}
-                  tail="dispatches"
-                />
-                {(metrics?.gpuProfile?.topKernels ?? []).slice(0, 3).map((kernel, index) => (
-                  <Metric
-                    key={kernel.name}
-                    label={`Hot ${index + 1}`}
-                    value={formatMs(kernel.ms)}
-                    tail={`${shortKernelName(kernel.name)} x${kernel.calls}`}
-                  />
-                ))}
-              </>
-            )}
-            <Metric label="Draw" value={formatMs(metrics?.drawMs)} tail="png" />
+          <FileDrop
+            label={videoFile?.name || "Upload video"}
+            accept="video/*"
+            onChange={(file) => {
+              setVideoFile(file);
+              if (file) setSelectedToyVideo("");
+            }}
+          />
+
+          <div className="section-title">
+            <Settings2 size={16} />
+            <span>Output</span>
           </div>
 
-          <button className="primary dark" onClick={runFrameInference} disabled={!canRun}>
-            <Play size={16} />
-            Run frame inference
-          </button>
+          <Field label="Interpolation multiplier">
+            <select
+              value={videoMultiplier}
+              onChange={(event) => setVideoMultiplier(Number(event.target.value))}
+            >
+              {[2, 4, 8, 16].map((factor) => (
+                <option key={factor} value={factor}>x{factor}</option>
+              ))}
+            </select>
+          </Field>
 
-          {outputUrl && (
-            <a className="download full" href={outputUrl} download="interpolated_frame.png">
+          <div className="format-lock">
+            <MonitorCheck size={16} />
+            <div>
+              <strong>1280 x 720</strong>
+              <span>16:9 contain, black padded when needed</span>
+            </div>
+          </div>
+
+          <div className="section-title">
+            <Gauge size={16} />
+            <span>Progress</span>
+          </div>
+
+          <div className="metric-table">
+            <Metric label="Model" value="720p fused" tail={metrics?.precision || "FP32"} />
+            <Metric label="Adapter" value={metrics?.provider || "-"} tail="WebGPU" />
+            <Metric label="Load" value={formatMs(metrics?.loadMs)} tail="startup" />
+            <Metric label="Warmup" value={formatMs(metrics?.warmupMs)} tail="gpu" />
+            <Metric
+              label="Duration"
+              value={formatDuration(videoMetrics?.durationSeconds * 1000)}
+              tail={
+                videoMetrics
+                  ? `${formatFps(videoMetrics.sourceFps)} fps source`
+                  : "native fps"
+              }
+            />
+            <Metric
+              label="Pairs"
+              value={
+                videoMetrics
+                  ? `${videoMetrics.completedPairs}/${videoMetrics.requestedPairs}`
+                  : "-"
+              }
+              tail={`${videoMetrics?.sourceFrames ?? "-"} source frames`}
+            />
+            <Metric
+              label="Generated"
+              value={
+                videoMetrics
+                  ? `${videoMetrics.generatedFrames}/${videoMetrics.generatedTarget}`
+                  : "-"
+              }
+              tail={`x${videoMultiplier}`}
+            />
+            <Metric
+              label="Encoded"
+              value={
+                videoMetrics
+                  ? `${videoMetrics.encodedFrames}/${videoMetrics.selectedOutputFrames}`
+                  : "-"
+              }
+              tail="MP4 frames"
+            />
+            <Metric
+              label="Output"
+              value={videoMetrics?.selectedOutputFrames ?? "-"}
+              tail={
+                videoMetrics
+                  ? `${formatFps(videoMetrics.outputFps)} fps`
+                : `native x${videoMultiplier}`
+              }
+            />
+            <Metric
+              label="Audio"
+              value={videoMetrics?.audio?.label ?? (videoMetrics ? "Checking" : "-")}
+              tail={
+                videoMetrics?.audio?.packetCount
+                  ? `${videoMetrics.audio.packetCount} packets`
+                  : "MP4"
+              }
+            />
+            <Metric
+              label="Elapsed"
+              value={formatDuration(videoMetrics?.elapsedMs)}
+              tail="end-to-end"
+            />
+            <Metric
+              label="Average"
+              value={formatDuration(videoMetrics?.averagePairMs)}
+              tail="per source pair"
+            />
+            <Metric
+              label="ETA"
+              value={formatDuration(videoMetrics?.etaMs)}
+              tail="full video"
+            />
+          </div>
+
+          {videoProgress && (
+            <div className="progress-box">
+              <div className="progress-meta">
+                <span>{videoProgress.message}</span>
+                <strong>{Math.round(videoProgress.progress * 100)}%</strong>
+              </div>
+              <div className="progress-track">
+                <div
+                  style={{
+                    width: `${Math.min(100, Math.max(0, videoProgress.progress * 100))}%`,
+                  }}
+                />
+              </div>
+              <div className="progress-count">
+                <span>Output frames</span>
+                <span>{videoProgress.completed}/{videoProgress.total}</span>
+              </div>
+            </div>
+          )}
+
+          {videoAbortRef.current ? (
+            <button className="primary stop" onClick={stopVideoInference}>
+              <Square size={15} />
+              Stop
+            </button>
+          ) : (
+            <button
+              className="primary dark"
+              onClick={runVideoInference}
+              disabled={!canRunVideo}
+            >
+              <Play size={16} />
+              Run video inference
+            </button>
+          )}
+
+          {videoOutputUrl && (
+            <a
+              className="download full"
+              href={videoOutputUrl}
+              download={`interpolated_x${videoMultiplier}.mp4`}
+            >
               <Download size={16} />
-              Download PNG
+              Download MP4
             </a>
           )}
-            </>
-          ) : (
-            <>
-              <div className="section-title">
-                <Film size={16} />
-                <span>Video interpolation output</span>
-              </div>
 
-              <Field label="Toy video">
-                <select
-                  value={selectedToyVideo}
-                  onChange={(event) => {
-                    const name = event.target.value;
-                    setSelectedToyVideo(name);
-                    if (name) {
-                      setVideoFile(null);
-                    }
-                  }}
-                >
-                  <option value="">uploaded file</option>
-                  {TOY_VIDEOS.map((video) => (
-                    <option key={video.name} value={video.name}>
-                      {video.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <FileDrop
-                label={videoFile?.name || "Input video"}
-                accept="video/*"
-                onChange={(file) => {
-                  setVideoFile(file);
-                  if (file) setSelectedToyVideo("");
-                }}
-              />
-
-              <Field label="Interpolation multiplier">
-                <select
-                  value={videoMultiplier}
-                  onChange={(event) => setVideoMultiplier(Number(event.target.value))}
-                >
-                  {[2, 4, 8, 16].map((factor) => (
-                    <option key={factor} value={factor}>x{factor}</option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Resize">
-                <select value={resizeMode} onChange={(event) => setResizeMode(event.target.value)}>
-                  <option value="contain">contain 16:9</option>
-                  <option value="cover">cover crop</option>
-                  <option value="stretch">stretch</option>
-                </select>
-              </Field>
-
-              <div className="metric-table">
-                <Metric
-                  label="Duration"
-                  value={formatDuration(videoMetrics?.durationSeconds * 1000)}
-                  tail={
-                    videoMetrics
-                      ? `${formatFps(videoMetrics.sourceFps)} fps source`
-                      : "native fps"
-                  }
-                />
-                <Metric
-                  label="Pairs"
-                  value={
-                    videoMetrics
-                      ? `${videoMetrics.completedPairs}/${videoMetrics.requestedPairs}`
-                      : "-"
-                  }
-                  tail={`${videoMetrics?.sourceFrames ?? "-"} source frames`}
-                />
-                <Metric
-                  label="Generated"
-                  value={
-                    videoMetrics
-                      ? `${videoMetrics.generatedFrames}/${videoMetrics.generatedTarget}`
-                      : "-"
-                  }
-                  tail={`x${videoMultiplier}`}
-                />
-                <Metric
-                  label="Encoded"
-                  value={
-                    videoMetrics
-                      ? `${videoMetrics.encodedFrames}/${videoMetrics.selectedOutputFrames}`
-                      : "-"
-                  }
-                  tail="MP4 frames"
-                />
-                <Metric
-                  label="Output"
-                  value={videoMetrics?.selectedOutputFrames ?? "-"}
-                  tail={
-                    videoMetrics
-                      ? `${formatFps(videoMetrics.outputFps)} fps`
-                      : `native x${videoMultiplier}`
-                  }
-                />
-                <Metric
-                  label="Elapsed"
-                  value={formatDuration(videoMetrics?.elapsedMs)}
-                  tail="end-to-end"
-                />
-                <Metric
-                  label="Average"
-                  value={formatDuration(videoMetrics?.averagePairMs)}
-                  tail="per source pair"
-                />
-                <Metric
-                  label="ETA"
-                  value={formatDuration(videoMetrics?.etaMs)}
-                  tail="full video"
-                />
-              </div>
-
-              {videoProgress && (
-                <div className="progress-box">
-                  <div className="progress-meta">
-                    <span>{videoProgress.message}</span>
-                    <strong>{Math.round(videoProgress.progress * 100)}%</strong>
-                  </div>
-                  <div className="progress-track">
-                    <div
-                      style={{
-                        width: `${Math.min(100, Math.max(0, videoProgress.progress * 100))}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="progress-count">
-                    <span>Output frames</span>
-                    <span>{videoProgress.completed}/{videoProgress.total}</span>
-                  </div>
-                </div>
-              )}
-
-              {videoAbortRef.current ? (
-                <button className="primary stop" onClick={stopVideoInference}>
-                  <Square size={15} />
-                  Stop
-                </button>
-              ) : (
-                <button
-                  className="primary dark"
-                  onClick={runVideoInference}
-                  disabled={!canRunVideo}
-                >
-                  <Play size={16} />
-                  Run video inference
-                </button>
-              )}
-
-              {videoOutputUrl && (
-                <a
-                  className="download full"
-                  href={videoOutputUrl}
-                  download={`interpolated_x${videoMultiplier}.mp4`}
-                >
-                  <Download size={16} />
-                  Download MP4
-                </a>
-              )}
-
-              <div className="hint">
-                <AlertCircle size={15} />
-                <span>
-                  Encodes H.264 MP4 in the browser. Output is currently silent; source audio is
-                  not copied.
-                </span>
-              </div>
-            </>
-          )}
+          <div className="hint">
+            <AlertCircle size={15} />
+            <span>
+              Encodes H.264 MP4 in the browser and copies compatible input audio into
+              the output. Files without a supported audio track are exported silent.
+            </span>
+          </div>
 
           {compatibilityIssue && (
             <GpuCompatibilityNotice issue={compatibilityIssue} />
           )}
-
-          {mode === "pair" && (
-          <div className="hint">
-            <AlertCircle size={15} />
-            <span>Use Chromium with hardware acceleration. The app rejects SwiftShader and other software adapters.</span>
-          </div>
-          )}
         </aside>
 
         <section className="stage">
-          <div className={mode === "video" ? "frame-stage video-stage" : "frame-stage"}>
-            {mode === "video" && videoInputUrl && (
+          <div className="frame-stage video-stage">
+            {videoInputUrl && (
               <VideoPreview title="Input video" src={videoInputUrl} />
             )}
             <CanvasPreview
-              title={mode === "video" ? "Decoded source frame" : "Frame 0"}
+              title="Decoded source frame"
               canvasRef={frame0CanvasRef}
             />
             <CanvasPreview
-              title={mode === "video" ? `Encoding preview x${videoMultiplier}` : "Interpolated"}
+              title={`Encoding preview x${videoMultiplier}`}
               canvasRef={outputCanvasRef}
             />
-            {mode === "video" && videoOutputUrl && (
+            {videoOutputUrl && (
               <VideoPreview title="Interpolated MP4" src={videoOutputUrl} />
-            )}
-            {mode === "pair" && (
-              <CanvasPreview title="Frame 1" canvasRef={frame1CanvasRef} />
             )}
           </div>
         </section>
@@ -789,38 +638,35 @@ async function runInference(runtime, img0, img1) {
   return runtime.pipeline.run(img0, img1);
 }
 
-async function readPrediction(runtime, predTensor) {
-  if (predTensor.location === "gpu-buffer") {
-    return copyGpuTensorToCpu(runtime.pipeline.device, predTensor);
-  }
-  return tensorToCpuData(predTensor, true);
-}
-
 function GpuCompatibilityNotice({ issue }) {
   const pageUrl = issue.pageUrl || "https://YOUR-VERCEL-APP.vercel.app";
   const adapterLabel = issue.adapterInfo ? formatAdapterLabel(issue.adapterInfo) : "";
-  const linuxCommand = `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 google-chrome --user-data-dir=/tmp/vfi-webgpu-chrome --no-first-run --no-default-browser-check --enable-unsafe-webgpu --ignore-gpu-blocklist --disable-software-rasterizer --use-angle=vulkan "${pageUrl}"`;
-  const windowsCommand = `Start-Process "$Env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe" -ArgumentList "--user-data-dir=$Env:TEMP\\vfi-webgpu-chrome --no-first-run --no-default-browser-check --enable-unsafe-webgpu --ignore-gpu-blocklist --disable-software-rasterizer ${pageUrl}"`;
+  const environment = detectClientEnvironment();
+  const launchGuide = getLaunchGuide(environment, pageUrl);
+
   return (
     <div className="compatibility-panel">
       <div className="section-title">
-        <AlertCircle size={16} />
-        <span>GPU required</span>
+        <BadgeCheck size={16} />
+        <span>Hardware GPU required</span>
       </div>
       <p>{issue.reason}</p>
       {adapterLabel && (
         <p className="compatibility-detail">Detected adapter: {adapterLabel}</p>
       )}
-      <p className="compatibility-detail">Detected browser: {issue.browserLabel}</p>
+      <p className="compatibility-detail">
+        Detected: {environment.browserLabel} on {environment.osLabel}
+      </p>
       <ol>
-        <li>Open the app in Chrome, Edge, Brave, or Chromium on desktop.</li>
-        <li>Enable browser hardware acceleration and check <code>chrome://gpu</code>.</li>
-        <li>Launch the browser with hardware WebGPU flags if the adapter is still rejected.</li>
+        {launchGuide.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
       </ol>
-      <span className="command-label">Linux NVIDIA</span>
-      <code className="command-snippet">{linuxCommand}</code>
-      <span className="command-label">Windows PowerShell</span>
-      <code className="command-snippet">{windowsCommand}</code>
+      <span className="command-label">{launchGuide.commandLabel}</span>
+      <code className="command-snippet">{launchGuide.command}</code>
+      {issue.browserLabel && (
+        <p className="compatibility-detail">Raw browser data: {issue.browserLabel}</p>
+      )}
     </div>
   );
 }
@@ -965,14 +811,189 @@ function detectBrowserLabel() {
   return navigator.userAgent;
 }
 
-async function imageFileToTensor(file, canvas, resizeMode) {
-  const bitmap = await createImageBitmap(file);
-  drawBitmapToCanvas(bitmap, canvas, resizeMode);
-  bitmap.close?.();
-  return canvasToNchw(canvas);
+function detectClientEnvironment() {
+  const brands = navigator.userAgentData?.brands ?? [];
+  const brandNames = brands.map(({ brand }) => brand);
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.userAgentData?.platform || navigator.platform || "";
+  const platformText = `${platform} ${userAgent}`.toLowerCase();
+  const browser = detectBrowserKey(brandNames, userAgent);
+  const os = detectOsKey(platformText);
+
+  return {
+    browser,
+    browserLabel: browserLabels[browser] || "Chromium browser",
+    os,
+    osLabel: osLabels[os] || "desktop OS",
+  };
 }
 
-async function createVideoFrameSource(source, canvas, resizeMode) {
+function detectBrowserKey(brandNames, userAgent) {
+  const brands = brandNames.join(" ").toLowerCase();
+  if (brands.includes("brave") || /brave/i.test(userAgent)) return "brave";
+  if (brands.includes("edge") || /edg\//i.test(userAgent)) return "edge";
+  if (brands.includes("google chrome") || /chrome/i.test(userAgent)) return "chrome";
+  if (brands.includes("chromium") || /chromium/i.test(userAgent)) return "chromium";
+  return "chromium";
+}
+
+function detectOsKey(platformText) {
+  if (platformText.includes("android")) return "android";
+  if (platformText.includes("iphone") || platformText.includes("ipad")) return "ios";
+  if (platformText.includes("win")) return "windows";
+  if (platformText.includes("mac")) return "macos";
+  if (platformText.includes("linux") || platformText.includes("x11")) return "linux";
+  return "unknown";
+}
+
+const browserLabels = {
+  brave: "Brave",
+  chrome: "Google Chrome",
+  chromium: "Chromium",
+  edge: "Microsoft Edge",
+};
+
+const osLabels = {
+  android: "Android",
+  ios: "iOS",
+  linux: "Linux",
+  macos: "macOS",
+  unknown: "unknown OS",
+  windows: "Windows",
+};
+
+function getLaunchGuide(environment, pageUrl) {
+  const gpuPage = browserGpuPage(environment.browser);
+  const steps = [
+    "Turn on hardware acceleration in the browser settings.",
+    `Open ${gpuPage} and confirm WebGPU is using the NVIDIA adapter.`,
+    "Restart the browser with the command below if it still selects software rendering.",
+  ];
+
+  if (environment.os === "linux") {
+    return {
+      steps,
+      commandLabel: `Linux NVIDIA - ${environment.browserLabel}`,
+      command: linuxLaunchCommand(environment.browser, pageUrl),
+    };
+  }
+
+  if (environment.os === "windows") {
+    return {
+      steps,
+      commandLabel: `Windows PowerShell - ${environment.browserLabel}`,
+      command: windowsLaunchCommand(environment.browser, pageUrl),
+    };
+  }
+
+  if (environment.os === "macos") {
+    return {
+      steps: [
+        "This build currently requires an NVIDIA WebGPU adapter.",
+        "macOS Apple GPUs can expose WebGPU, but this app will still reject them until the NVIDIA-only check is relaxed.",
+        "Use a Linux or Windows NVIDIA machine for this model build.",
+      ],
+      commandLabel: "macOS note",
+      command: "macOS Apple GPUs are not supported by the current NVIDIA-only adapter check.",
+    };
+  }
+
+  return {
+    steps: [
+      "Use a desktop Chromium browser on Linux or Windows with an NVIDIA GPU.",
+      `Turn on hardware acceleration and check ${gpuPage}.`,
+      "For Linux NVIDIA, use the command below instead of launching the browser normally.",
+    ],
+    commandLabel: "Linux NVIDIA fallback",
+    command: linuxLaunchCommand("chrome", pageUrl),
+  };
+}
+
+function browserGpuPage(browser) {
+  return {
+    brave: "brave://gpu",
+    chrome: "chrome://gpu",
+    chromium: "chrome://gpu",
+    edge: "edge://gpu",
+  }[browser] || "chrome://gpu";
+}
+
+function linuxLaunchCommand(browser, pageUrl) {
+  const bin = {
+    brave: "brave-browser",
+    chrome: "google-chrome",
+    chromium: "chromium",
+    edge: "microsoft-edge",
+  }[browser] || "google-chrome";
+  const profile = {
+    brave: "vfi-webgpu-brave",
+    chrome: "vfi-webgpu-chrome",
+    chromium: "vfi-webgpu-chromium",
+    edge: "vfi-webgpu-edge",
+  }[browser] || "vfi-webgpu-chrome";
+
+  return `APP_URL="${pageUrl}"
+NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \\
+VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \\
+${bin} \\
+  --user-data-dir=/tmp/${profile} \\
+  --no-first-run \\
+  --no-default-browser-check \\
+  --enable-unsafe-webgpu \\
+  --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \\
+  --enable-dawn-features=allow_unsafe_apis \\
+  --use-angle=vulkan \\
+  --ignore-gpu-blocklist \\
+  --disable-software-rasterizer \\
+  --enable-gpu-rasterization \\
+  --enable-zero-copy \\
+  "$APP_URL"`;
+}
+
+function windowsLaunchCommand(browser, pageUrl) {
+  const config = {
+    brave: {
+      exe: "$Env:ProgramFiles\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+      profile: "vfi-webgpu-brave",
+    },
+    chrome: {
+      exe: "$Env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe",
+      profile: "vfi-webgpu-chrome",
+    },
+    chromium: {
+      exe: "$Env:LOCALAPPDATA\\Chromium\\Application\\chrome.exe",
+      profile: "vfi-webgpu-chromium",
+    },
+    edge: {
+      exe: "${Env:ProgramFiles(x86)}\\Microsoft\\Edge\\Application\\msedge.exe",
+      profile: "vfi-webgpu-edge",
+    },
+  }[browser] || {
+    exe: "$Env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe",
+    profile: "vfi-webgpu-chrome",
+  };
+
+  return `$AppUrl = "${pageUrl}"
+$Profile = "$Env:TEMP\\${config.profile}"
+$Browser = "${config.exe}"
+Start-Process $Browser -ArgumentList @(
+  "--user-data-dir=$Profile",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--enable-unsafe-webgpu",
+  "--ignore-gpu-blocklist",
+  "--disable-software-rasterizer",
+  "--enable-gpu-rasterization",
+  "--enable-features=UseSkiaRenderer",
+  "--force_high_performance_gpu",
+  "--new-window",
+  $AppUrl
+)`;
+}
+
+async function createVideoFrameSource(source, canvas) {
   const input = new Input({
     source: typeof source === "string" ? new UrlSource(source) : new BlobSource(source),
     formats: ALL_FORMATS,
@@ -998,15 +1019,19 @@ async function createVideoFrameSource(source, canvas, resizeMode) {
       throw new Error("Input video contains no decodable frames");
     }
 
+    const audioTrack =
+      (await videoTrack.getPrimaryPairableAudioTrack()) ??
+      (await input.getPrimaryAudioTrack());
     const sink = new CanvasSink(videoTrack, {
       width: MODEL_SIZE.width,
       height: MODEL_SIZE.height,
-      fit: resizeMode === "stretch" ? "fill" : resizeMode,
+      fit: VIDEO_RESIZE_MODE,
     });
     return {
       duration,
       fps: stats.averagePacketRate,
       frameCount: stats.packetCount,
+      audioTrack,
       async *frames() {
         let decodedFrames = 0;
         for await (const decoded of sink.canvases()) {
@@ -1125,11 +1150,6 @@ function estimateIntervalMs(pipelineMetrics, multiplier) {
     (pipelineMetrics?.shiftMs ?? 1) +
     (pipelineMetrics?.stage2Ms ?? 820);
   return (multiplier / 2) * encoderPerFrame + (multiplier - 1) * pairHeadAndRefiner;
-}
-
-function shortKernelName(name) {
-  const parts = String(name).split(":");
-  return parts.at(-1) || name;
 }
 
 function useObjectUrl(blob) {

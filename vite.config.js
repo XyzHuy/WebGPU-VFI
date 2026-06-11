@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [react(), serveOrtRuntime()],
   server: {
     port: 5174,
+    watch: {
+      ignored: ["**/.venv/**", "**/dist/**"],
+    },
     headers: {
       "Cross-Origin-Embedder-Policy": "require-corp",
       "Cross-Origin-Opener-Policy": "same-origin",

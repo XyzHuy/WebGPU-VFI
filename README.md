@@ -1,69 +1,60 @@
 # Frame Interpolation WebGPU
 
-Run frame and video interpolation directly in a Chromium browser with WebGPU.
+<p>
+  <img alt="React" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111" />
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=fff" />
+  <img alt="WebGPU" src="https://img.shields.io/badge/WebGPU-Chromium-4285F4?logo=googlechrome&logoColor=fff" />
+  <img alt="ONNX Runtime" src="https://img.shields.io/badge/ONNX_Runtime-Web-005CED?logo=onnx&logoColor=fff" />
+  <img alt="Video only" src="https://img.shields.io/badge/Inference-video_only-1f7a4d" />
+</p>
 
-This is the browser deployment of
+Browser deployment for
 [XyzHuy/UET-Deep-Learning-2025_Frame-Interpolation](https://github.com/XyzHuy/UET-Deep-Learning-2025_Frame-Interpolation).
-It uses React, Vite, ONNX Runtime Web, custom WebGPU compute shaders, WebCodecs,
-and in-browser MP4 encoding.
+The app runs video frame interpolation directly in a desktop Chromium browser
+using WebGPU, ONNX Runtime Web, custom WebGPU compute shaders, WebCodecs, and
+in-browser MP4 encoding.
 
-> This demo is optimized for convenience and portability, not for matching the
-> PyTorch/CUDA inference speed of the original repository. Browser WebGPU,
-> ONNX Runtime Web sessions, and FP32 convolution overhead make it slower than
-> the native Torch path.
+The app interpolates input videos to a higher frame
+rate, defaults to `x4`, and normalizes frames to the model's fixed `1280 x 720`
+16:9 input using contain padding.
 
-## Quick Start
+> This deployment is optimized for portability and a browser-based demo flow.
+> It is not expected to match the PyTorch/CUDA speed of the original repository.
 
-```bash
-npm install
-npm run dev
-```
+## Browser And GPU Requirements
 
-Open the local URL printed by Vite. For Vercel, deploy as a normal Vite static
-site:
+The app is designed for desktop Chromium-family browsers with a hardware NVIDIA
+WebGPU adapter. It rejects software adapters such as SwiftShader, llvmpipe,
+lavapipe, WARP, CPU fallback, and other non-hardware paths.
 
-| Setting | Value |
+| Browser | Status |
 | --- | --- |
-| Framework | Vite |
-| Install Command | `npm ci` |
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
-| Environment Variables | none |
-## Browser Requirements
+| ![Google Chrome](https://img.shields.io/badge/Google_Chrome-4285F4?logo=googlechrome&logoColor=white) | Recommended |
+| ![Microsoft Edge](https://img.shields.io/badge/Microsoft_Edge-0078D7?logo=microsoftedge&logoColor=white) | Supported |
+| ![Brave](https://img.shields.io/badge/Brave-FB542B?logo=brave&logoColor=white) | Supported |
+| ![Chromium](https://img.shields.io/badge/Chromium-4285F4?logo=chromium&logoColor=white) | Supported |
 
-Use a desktop Chromium-family browser:
+Before launching with flags:
 
-- Google Chrome
-- Microsoft Edge
-- Brave
-- Chromium
+1. Enable hardware acceleration in the browser settings.
+2. Open `chrome://gpu`.
+3. Confirm WebGPU is using the NVIDIA GPU, not SwiftShader or another software
+   fallback.
 
-The app checks WebGPU before loading the model. It rejects software adapters
-such as SwiftShader, llvmpipe, lavapipe, WARP, CPU fallback, and other
-non-hardware paths.
+## Launch Browser With NVIDIA WebGPU
 
-If the page rejects your GPU:
+Open the block for your OS/browser and copy the command into a terminal. GitHub
+adds a copy button to each code block.
 
-1. Turn on browser hardware acceleration.
-2. Open `chrome://gpu` and confirm WebGPU is using the real GPU.
-3. Launch the browser with one of the commands below.
+<details>
+<summary><strong>Linux NVIDIA commands</strong></summary>
 
-The commands include:
+If your NVIDIA ICD file is not at `/usr/share/vulkan/icd.d/nvidia_icd.json`,
+update `NVIDIA_ICD` in the command before running it.
 
-- `--no-first-run` to skip first-run sign-in/onboarding pages
-- `--no-default-browser-check` to skip "make this default browser" prompts
-- a fixed `--user-data-dir` so the browser remembers the skipped setup screen
-- `--disable-software-rasterizer` so SwiftShader/software fallback is rejected
-
-If a browser still shows one setup page, click the "stay signed out" or skip
-option once. As long as you keep the same profile directory, it should not ask
-again.
-
-## Linux NVIDIA Commands
-Chrome:
+#### Google Chrome
 
 ```bash
-
 APP_URL="https://web-gpu-vfi.vercel.app/"
 NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
@@ -84,34 +75,9 @@ google-chrome \
   "$APP_URL"
 ```
 
-Chromium:
+#### Microsoft Edge
 
 ```bash
-
-APP_URL="https://web-gpu-vfi.vercel.app/"
-NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
-
-__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
-VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
-chromium \
-  --user-data-dir=/tmp/vfi-webgpu-chromium \
-  --no-first-run \
-  --no-default-browser-check \
-  --enable-unsafe-webgpu \
-  --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \
-  --enable-dawn-features=allow_unsafe_apis \
-  --use-angle=vulkan \
-  --ignore-gpu-blocklist \
-  --disable-software-rasterizer \
-  --enable-gpu-rasterization \
-  --enable-zero-copy \
-  "$APP_URL"
-```
-
-Microsoft Edge:
-
-```bash
-
 APP_URL="https://web-gpu-vfi.vercel.app/"
 NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
@@ -132,7 +98,7 @@ microsoft-edge \
   "$APP_URL"
 ```
 
-Brave:
+#### Brave
 
 ```bash
 APP_URL="https://web-gpu-vfi.vercel.app/"
@@ -155,15 +121,42 @@ brave-browser \
   "$APP_URL"
 ```
 
-If your NVIDIA ICD file is not at `/usr/share/vulkan/icd.d/nvidia_icd.json`,
-update `NVIDIA_ICD` or remove the two `VK_*` variables.
+#### Chromium
 
-## Windows Commands
+```bash
+APP_URL="https://web-gpu-vfi.vercel.app/"
+NVIDIA_ICD="/usr/share/vulkan/icd.d/nvidia_icd.json"
 
-Chrome:
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only DRI_PRIME=1 \
+VK_DRIVER_FILES="$NVIDIA_ICD" VK_ICD_FILENAMES="$NVIDIA_ICD" \
+chromium \
+  --user-data-dir=/tmp/vfi-webgpu-chromium \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WebGPUDeveloperFeatures \
+  --enable-dawn-features=allow_unsafe_apis \
+  --use-angle=vulkan \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  --enable-zero-copy \
+  "$APP_URL"
+```
+
+</details>
+
+<details>
+<summary><strong>Windows NVIDIA commands</strong></summary>
+
+Open PowerShell and use the block for your browser. If your browser is installed
+elsewhere, update `$Browser`.
+
+#### Google Chrome
 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Profile = "$Env:TEMP\vfi-webgpu-chrome"
 $Browser = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
 Start-Process $Browser -ArgumentList @(
   "--user-data-dir=$Profile",
@@ -171,6 +164,7 @@ Start-Process $Browser -ArgumentList @(
   "--no-default-browser-check",
   "--enable-unsafe-webgpu",
   "--ignore-gpu-blocklist",
+  "--disable-software-rasterizer",
   "--enable-gpu-rasterization",
   "--enable-features=UseSkiaRenderer",
   "--force_high_performance_gpu",
@@ -179,13 +173,14 @@ Start-Process $Browser -ArgumentList @(
 )
 ```
 
-Microsoft Edge:
+#### Microsoft Edge
 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Profile = "$Env:TEMP\vfi-webgpu-edge"
 $Browser = "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
 Start-Process $Browser -ArgumentList @(
-  "--user-data-dir=$Env:TEMP\vfi-webgpu-edge",
+  "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
   "--enable-unsafe-webgpu",
@@ -194,18 +189,19 @@ Start-Process $Browser -ArgumentList @(
   "--enable-gpu-rasterization",
   "--enable-features=UseSkiaRenderer",
   "--force_high_performance_gpu",
-  "--new-window"
+  "--new-window",
   $AppUrl
 )
 ```
 
-Brave:
+#### Brave
 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Profile = "$Env:TEMP\vfi-webgpu-brave"
 $Browser = "$Env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe"
 Start-Process $Browser -ArgumentList @(
-  "--user-data-dir=$Env:TEMP\vfi-webgpu-brave",
+  "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
   "--enable-unsafe-webgpu",
@@ -214,18 +210,19 @@ Start-Process $Browser -ArgumentList @(
   "--enable-gpu-rasterization",
   "--enable-features=UseSkiaRenderer",
   "--force_high_performance_gpu",
-  "--new-window"
+  "--new-window",
   $AppUrl
 )
 ```
 
-Chromium:
+#### Chromium
 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
+$Profile = "$Env:TEMP\vfi-webgpu-chromium"
 $Browser = "$Env:LOCALAPPDATA\Chromium\Application\chrome.exe"
 Start-Process $Browser -ArgumentList @(
-  "--user-data-dir=$Env:TEMP\vfi-webgpu-chromium",
+  "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
   "--enable-unsafe-webgpu",
@@ -234,12 +231,70 @@ Start-Process $Browser -ArgumentList @(
   "--enable-gpu-rasterization",
   "--enable-features=UseSkiaRenderer",
   "--force_high_performance_gpu",
-  "--new-window"
+  "--new-window",
   $AppUrl
 )
 ```
 
-If your browser is installed somewhere else, update `$Browser`.
+</details>
+
+<details>
+<summary><strong>Linux dev shortcut script</strong></summary>
+
+For local development, the repository also includes a convenience wrapper around
+the Linux NVIDIA flags:
+
+```bash
+./scripts/launch-chrome-nvidia.sh "http://localhost:5174/"
+```
+
+Use `VFI_WEBGPU_CHROME_BIN` to choose another Chromium-family browser:
+
+| Browser | Command |
+| --- | --- |
+| Chrome | `./scripts/launch-chrome-nvidia.sh "http://localhost:5174/"` |
+| Chromium | `VFI_WEBGPU_CHROME_BIN=chromium ./scripts/launch-chrome-nvidia.sh "http://localhost:5174/"` |
+| Edge | `VFI_WEBGPU_CHROME_BIN=microsoft-edge ./scripts/launch-chrome-nvidia.sh "http://localhost:5174/"` |
+| Brave | `VFI_WEBGPU_CHROME_BIN=brave-browser ./scripts/launch-chrome-nvidia.sh "http://localhost:5174/"` |
+
+Optional environment variables:
+
+| Variable | Default |
+| --- | --- |
+| `VFI_WEBGPU_CHROME_BIN` | `google-chrome` |
+| `VFI_WEBGPU_CHROME_PROFILE` | `/tmp/vfi-webgpu-chrome-nvidia` |
+| `VFI_WEBGPU_NVIDIA_ICD` | `/usr/share/vulkan/icd.d/nvidia_icd.json` |
+
+</details>
+
+### macOS
+ Not yet support
+
+## Local Development
+
+Install dependencies and start Vite:
+
+```bash
+npm install
+npm run dev
+```
+
+Then open the local URL printed by Vite with the same GPU-aware browser flow.
+For the configured Vite port on Linux NVIDIA:
+
+```bash
+./scripts/launch-chrome-nvidia.sh "http://localhost:5174/"
+```
+
+If Vite chooses another port, pass that exact URL to the script.
+
+Useful scripts:
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local Vite dev server |
+| `npm run build` | Build the static production app |
+| `npm run preview` | Preview the production build locally |
 
 ## Model Files
 
@@ -261,6 +316,19 @@ Generate them from the original repository:
 python3 Export_ONNX.py --validate
 ```
 
-`Export_ONNX.py` exports both the split ONNX pipeline and the default hybrid
-hot Conv artifacts.
+`Export_ONNX.py` exports both the split ONNX pipeline and the default hybrid hot
+Conv artifacts.
+
+## Technical Notes
+
+- Input frames are resized to `1280 x 720` using 16:9 contain padding.
+- Video interpolation defaults to `x4`; the UI also exposes `x2`, `x8`, and
+  `x16`.
+- Output is encoded as silent H.264 MP4 in the browser. Source audio is not
+  copied.
+- ONNX Runtime Web runs the model pieces on WebGPU. Custom WebGPU compute code
+  handles the fused apply-shift path.
+- The app intentionally rejects software/fallback adapters so benchmark numbers
+  are not accidentally collected on CPU-backed WebGPU.
+
 
