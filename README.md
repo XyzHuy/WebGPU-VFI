@@ -46,8 +46,7 @@ https://web-gpu-vfi.vercel.app/
 > **Note:** Desktop PCs with NVIDIA GPUs can usually run the demo directly. NVIDIA laptops may require launching the browser with the provided WebGPU/NVIDIA script. See [Launch Browser With NVIDIA WebGPU](#launch-browser-with-nvidia-webgpu).
 ## Launch Browser With NVIDIA WebGPU
 
-Open the block for your OS/browser and copy the command into a terminal. GitHub
-adds a copy button to each code block.
+Open the block for your OS/browser and copy the command into a terminal.
 
 <details>
 <summary><strong>Linux NVIDIA commands</strong></summary>
