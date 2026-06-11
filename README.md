@@ -318,25 +318,13 @@ The deployed app expects these files under `public/models`:
 - `frame_interpolation_stage2_hotconv_upconv2_0_bias.bin`
 - `frame_interpolation_stage2_hotconv_upconv2_0_prelu.bin`
 
-Generate them from the original repository:
-
-```bash
-python3 Export_ONNX.py --validate
-```
-
-`Export_ONNX.py` exports both the split ONNX pipeline and the default hybrid hot
-Conv artifacts.
 
 ## Technical Notes
 
 - Input frames are resized to `1280 x 720` using 16:9 contain padding.
 - Video interpolation defaults to `x4`; the UI also exposes `x2`, `x8`, and
   `x16`.
-- Output is encoded as silent H.264 MP4 in the browser. Source audio is not
-  copied.
-- ONNX Runtime Web runs the model pieces on WebGPU. Custom WebGPU compute code
-  handles the fused apply-shift path.
-- The app intentionally rejects software/fallback adapters so benchmark numbers
-  are not accidentally collected on CPU-backed WebGPU.
+- ONNX Runtime Web runs the model pieces on WebGPU. 
+- The app intentionally rejects software/fallback adapters 
 
 
