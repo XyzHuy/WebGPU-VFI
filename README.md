@@ -157,16 +157,14 @@ chromium \
 <details>
 <summary><strong>Windows NVIDIA commands</strong></summary>
 
-Open PowerShell and use the block for your browser. If your browser is installed
-elsewhere, update `$Browser`.
-
+Open PowerShell and use the block for your browser.
 #### Google Chrome
 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Profile = "$Env:TEMP\vfi-webgpu-chrome"
-$Browser = "$Env:ProgramFiles\Google\Chrome\Application\chrome.exe"
-Start-Process $Browser -ArgumentList @(
+
+Start-Process "chrome.exe" -ArgumentList @(
   "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
@@ -174,7 +172,6 @@ Start-Process $Browser -ArgumentList @(
   "--ignore-gpu-blocklist",
   "--disable-software-rasterizer",
   "--enable-gpu-rasterization",
-  "--enable-features=UseSkiaRenderer",
   "--force_high_performance_gpu",
   "--new-window",
   $AppUrl
@@ -186,8 +183,8 @@ Start-Process $Browser -ArgumentList @(
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Profile = "$Env:TEMP\vfi-webgpu-edge"
-$Browser = "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
-Start-Process $Browser -ArgumentList @(
+
+Start-Process "msedge.exe" -ArgumentList @(
   "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
@@ -207,8 +204,8 @@ Start-Process $Browser -ArgumentList @(
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Profile = "$Env:TEMP\vfi-webgpu-brave"
-$Browser = "$Env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe"
-Start-Process $Browser -ArgumentList @(
+
+Start-Process "brave.exe" -ArgumentList @(
   "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
@@ -224,12 +221,12 @@ Start-Process $Browser -ArgumentList @(
 ```
 
 #### Chromium
-
+It's still chrome.exe 
 ```powershell
 $AppUrl = "https://web-gpu-vfi.vercel.app/"
 $Profile = "$Env:TEMP\vfi-webgpu-chromium"
-$Browser = "$Env:LOCALAPPDATA\Chromium\Application\chrome.exe"
-Start-Process $Browser -ArgumentList @(
+
+Start-Process "chrome.exe" -ArgumentList @(
   "--user-data-dir=$Profile",
   "--no-first-run",
   "--no-default-browser-check",
