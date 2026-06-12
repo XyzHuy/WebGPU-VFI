@@ -895,7 +895,7 @@ function getLaunchGuide(environment, pageUrl) {
         `Open ${gpuPage} and confirm WebGPU is using a hardware adapter such as Apple GPU.`,
         "Restart the browser with the command below if it still selects software rendering.",
       ],
-      commandLabel: `macOS experimental - ${environment.browserLabel}`,
+      commandLabel: `macOS Apple Metal - ${environment.browserLabel}`,
       command: macosLaunchCommand(environment.browser, pageUrl),
     };
   }

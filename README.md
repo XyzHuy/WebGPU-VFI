@@ -36,10 +36,10 @@ https://github.com/user-attachments/assets/8073f3aa-6ff9-48ad-a7bb-818471eab434
 ## Browser And GPU Requirements
 
 The app is designed for desktop Chromium-family browsers with a hardware WebGPU
-adapter. Linux and Windows are still tested through the NVIDIA path. macOS is
-experimental and allows non-software hardware adapters such as Apple GPU.
-Software adapters such as SwiftShader, llvmpipe, lavapipe, WARP, CPU fallback,
-and other non-hardware paths are rejected.
+adapter. Linux and Windows are tested through the NVIDIA path. macOS has been
+tested on Apple Metal and allows non-software hardware adapters such as Apple
+GPU. Software adapters such as SwiftShader, llvmpipe, lavapipe, WARP, CPU
+fallback, and other non-hardware paths are rejected.
 
 | Browser | Status |
 | --- | --- |
@@ -51,7 +51,7 @@ and other non-hardware paths are rejected.
 ## Live app deploy in Vercel
 https://web-gpu-vfi.vercel.app/
 
-> **Note:** Desktop PCs with NVIDIA GPUs can usually run the demo directly. NVIDIA laptops may require launching the browser with the provided WebGPU/NVIDIA script. macOS support is experimental and should be tested on a real Apple/AMD/Intel hardware WebGPU adapter.
+> **Note:** Desktop PCs with NVIDIA GPUs can usually run the demo directly. NVIDIA laptops may require launching the browser with the provided WebGPU/NVIDIA script. macOS has been tested on Apple Metal; other macOS hardware WebGPU adapters should still be checked with the browser GPU page.
 ## Launch Browser With NVIDIA WebGPU
 
 Open the block for your OS/browser and copy the command into a terminal.
@@ -274,19 +274,11 @@ Optional environment variables:
 
 </details>
 
-### macOS
+<details>
+<summary><strong>macOS Apple Metal commands</strong></summary>
 
-macOS support is experimental, this path still needs real-device testing
-for ONNX Runtime WebGPU, the custom WGSL shaders, and browser H.264 encoding.
-
-Recommended checklist:
-
-- Use a desktop Chromium-family browser such as Google Chrome, Microsoft Edge,
-  Brave, or Chromium.
-- Turn on hardware acceleration in the browser settings.
-- Open `chrome://gpu`, `edge://gpu`, or `brave://gpu` and confirm WebGPU is
-  using a hardware adapter, not SwiftShader or another software adapter.
-- Use the Vercel HTTPS deployment or `localhost` for local development.
+macOS support has been tested on Apple Metal. Other macOS hardware WebGPU
+adapters may work, but should still be checked with the browser GPU page.
 
 Open the block for your browser and copy the command into a terminal.
 
@@ -354,6 +346,8 @@ open -na "Chromium" --args \
   "$APP_URL"
 ```
 
+</details>
+
 ## Local Development
 
 Install dependencies and start Vite:
@@ -404,4 +398,4 @@ The deployed app expects these files under `public/models`:
 - ONNX Runtime Web runs the model pieces on WebGPU. 
 - The app intentionally rejects software/fallback adapters.
 - Linux and Windows currently keep the NVIDIA adapter requirement; macOS allows
-  any non-software hardware WebGPU adapter as an experimental path.
+  any non-software hardware WebGPU adapter and has been tested on Apple Metal.
