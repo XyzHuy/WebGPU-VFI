@@ -52,6 +52,7 @@ fallback, and other non-hardware paths are rejected.
 https://web-gpu-vfi.vercel.app/
 
 > **Note:** Desktop PCs with NVIDIA GPUs can usually run the demo directly. NVIDIA laptops may require launching the browser with the provided WebGPU/NVIDIA script. macOS has been tested on Apple Metal; other macOS hardware WebGPU adapters should still be checked with the browser GPU page.
+
 ## Launch Browser With NVIDIA WebGPU
 
 Open the block for your OS/browser and copy the command into a terminal.
@@ -348,6 +349,17 @@ open -na "Chromium" --args \
 
 </details>
 
+
+
+## How to run video - if you need
+<details>
+<summary><strong> Guide video <strong></summary>
+<br>
+
+https://github.com/user-attachments/assets/1bfe1e7b-9e33-444d-9f65-44727a8e148d
+
+
+</details>
 ## Local Development
 
 Install dependencies and start Vite:
