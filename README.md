@@ -360,6 +360,8 @@ https://github.com/user-attachments/assets/1bfe1e7b-9e33-444d-9f65-44727a8e148d
 
 
 </details>
+
+
 ## Local Development
 
 Install dependencies and start Vite:
