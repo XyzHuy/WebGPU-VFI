@@ -35,9 +35,11 @@ https://github.com/user-attachments/assets/8073f3aa-6ff9-48ad-a7bb-818471eab434
 
 ## Browser And GPU Requirements
 
-The app is designed for desktop Chromium-family browsers with a hardware NVIDIA
-WebGPU adapter. It rejects software adapters such as SwiftShader, llvmpipe,
-lavapipe, WARP, CPU fallback, and other non-hardware paths.
+The app is designed for desktop Chromium-family browsers with a hardware WebGPU
+adapter. Linux and Windows are still tested through the NVIDIA path. macOS is
+experimental and allows non-software hardware adapters such as Apple GPU.
+Software adapters such as SwiftShader, llvmpipe, lavapipe, WARP, CPU fallback,
+and other non-hardware paths are rejected.
 
 | Browser | Status |
 | --- | --- |
@@ -49,7 +51,7 @@ lavapipe, WARP, CPU fallback, and other non-hardware paths.
 ## Live app deploy in Vercel
 https://web-gpu-vfi.vercel.app/
 
-> **Note:** Desktop PCs with NVIDIA GPUs can usually run the demo directly. NVIDIA laptops may require launching the browser with the provided WebGPU/NVIDIA script. See [Launch Browser With NVIDIA WebGPU](#launch-browser-with-nvidia-webgpu).
+> **Note:** Desktop PCs with NVIDIA GPUs can usually run the demo directly. NVIDIA laptops may require launching the browser with the provided WebGPU/NVIDIA script. macOS support is experimental and should be tested on a real Apple/AMD/Intel hardware WebGPU adapter.
 ## Launch Browser With NVIDIA WebGPU
 
 Open the block for your OS/browser and copy the command into a terminal.
@@ -273,7 +275,84 @@ Optional environment variables:
 </details>
 
 ### macOS
- Not yet support
+
+macOS support is experimental, this path still needs real-device testing
+for ONNX Runtime WebGPU, the custom WGSL shaders, and browser H.264 encoding.
+
+Recommended checklist:
+
+- Use a desktop Chromium-family browser such as Google Chrome, Microsoft Edge,
+  Brave, or Chromium.
+- Turn on hardware acceleration in the browser settings.
+- Open `chrome://gpu`, `edge://gpu`, or `brave://gpu` and confirm WebGPU is
+  using a hardware adapter, not SwiftShader or another software adapter.
+- Use the Vercel HTTPS deployment or `localhost` for local development.
+
+Open the block for your browser and copy the command into a terminal.
+
+#### Google Chrome
+
+```bash
+APP_URL="https://web-gpu-vfi.vercel.app/"
+
+open -na "Google Chrome" --args \
+  --user-data-dir=/tmp/vfi-webgpu-chrome-macos \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  "$APP_URL"
+```
+
+#### Microsoft Edge
+
+```bash
+APP_URL="https://web-gpu-vfi.vercel.app/"
+
+open -na "Microsoft Edge" --args \
+  --user-data-dir=/tmp/vfi-webgpu-edge-macos \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  "$APP_URL"
+```
+
+#### Brave
+
+```bash
+APP_URL="https://web-gpu-vfi.vercel.app/"
+
+open -na "Brave Browser" --args \
+  --user-data-dir=/tmp/vfi-webgpu-brave-macos \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  "$APP_URL"
+```
+
+#### Chromium
+
+```bash
+APP_URL="https://web-gpu-vfi.vercel.app/"
+
+open -na "Chromium" --args \
+  --user-data-dir=/tmp/vfi-webgpu-chromium-macos \
+  --no-first-run \
+  --no-default-browser-check \
+  --enable-unsafe-webgpu \
+  --ignore-gpu-blocklist \
+  --disable-software-rasterizer \
+  --enable-gpu-rasterization \
+  "$APP_URL"
+```
 
 ## Local Development
 
@@ -292,6 +371,7 @@ For the configured Vite port on Linux NVIDIA:
 ```
 
 If Vite chooses another port, pass that exact URL to the script.
+On macOS, replace `APP_URL` in the macOS command with the local URL.
 
 Useful scripts:
 
@@ -322,6 +402,6 @@ The deployed app expects these files under `public/models`:
 - Video interpolation defaults to `x4`; the UI also exposes `x2`, `x8`, and
   `x16`.
 - ONNX Runtime Web runs the model pieces on WebGPU. 
-- The app intentionally rejects software/fallback adapters 
-
-
+- The app intentionally rejects software/fallback adapters.
+- Linux and Windows currently keep the NVIDIA adapter requirement; macOS allows
+  any non-software hardware WebGPU adapter as an experimental path.

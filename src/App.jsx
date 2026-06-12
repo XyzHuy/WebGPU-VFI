@@ -734,6 +734,8 @@ function throwCompatibility(reason, details = {}) {
 }
 
 async function requestCompatibleAdapter() {
+  const environment = detectClientEnvironment();
+
   if (!isChromiumLikeBrowser()) {
     throwCompatibility("Use a Chromium browser such as Chrome, Edge, Brave, or Chromium.");
   }
@@ -767,7 +769,7 @@ async function requestCompatibleAdapter() {
     throwCompatibility(`Rejected software WebGPU adapter: ${label}.`, { adapterInfo: info });
   }
 
-  if (!isNvidiaAdapter(lower)) {
+  if (environment.os !== "macos" && !isNvidiaAdapter(lower)) {
     throwCompatibility(`Expected NVIDIA WebGPU adapter, got: ${label}.`, { adapterInfo: info });
   }
 
@@ -889,12 +891,12 @@ function getLaunchGuide(environment, pageUrl) {
   if (environment.os === "macos") {
     return {
       steps: [
-        "This build currently requires an NVIDIA WebGPU adapter.",
-        "macOS Apple GPUs can expose WebGPU, but this app will still reject them until the NVIDIA-only check is relaxed.",
-        "Use a Linux or Windows NVIDIA machine for this model build.",
+        "Turn on hardware acceleration in the browser settings.",
+        `Open ${gpuPage} and confirm WebGPU is using a hardware adapter such as Apple GPU.`,
+        "Restart the browser with the command below if it still selects software rendering.",
       ],
-      commandLabel: "macOS note",
-      command: "macOS Apple GPUs are not supported by the current NVIDIA-only adapter check.",
+      commandLabel: `macOS experimental - ${environment.browserLabel}`,
+      command: macosLaunchCommand(environment.browser, pageUrl),
     };
   }
 
@@ -991,6 +993,32 @@ Start-Process $Browser -ArgumentList @(
   "--new-window",
   $AppUrl
 )`;
+}
+
+function macosLaunchCommand(browser, pageUrl) {
+  const appName = {
+    brave: "Brave Browser",
+    chrome: "Google Chrome",
+    chromium: "Chromium",
+    edge: "Microsoft Edge",
+  }[browser] || "Google Chrome";
+  const profile = {
+    brave: "vfi-webgpu-brave",
+    chrome: "vfi-webgpu-chrome",
+    chromium: "vfi-webgpu-chromium",
+    edge: "vfi-webgpu-edge",
+  }[browser] || "vfi-webgpu-chrome";
+
+  return `APP_URL="${pageUrl}"
+open -na "${appName}" --args \\
+  --user-data-dir=/tmp/${profile}-macos \\
+  --no-first-run \\
+  --no-default-browser-check \\
+  --enable-unsafe-webgpu \\
+  --ignore-gpu-blocklist \\
+  --disable-software-rasterizer \\
+  --enable-gpu-rasterization \\
+  "$APP_URL"`;
 }
 
 async function createVideoFrameSource(source, canvas) {
